@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kundali Admin - Consultations</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Toggle sidebar" aria-expanded="true">
+    <span></span><span></span><span></span>
+  </button>
+  <aside class="sidebar">
+    <div class="brand">
+      <span>Kundali</span>
+      <strong>Admin</strong>
+    </div>
+    <nav>
+      <button class="nav-item active" data-panel="dashboard">Dashboard</button>
+      <button class="nav-item" data-panel="consultations">Consultations</button>
+      <button class="nav-item" data-panel="matchmaking">Matchmaking</button>
+      <button class="nav-item" data-panel="astrologers">Astrologers</button>
+      <button class="nav-item" data-panel="community">Community</button>
+      <button class="nav-item" data-panel="settings">Connection</button>
+    </nav>
+    <div class="connection-card">
+      <span>API</span>
+      <strong id="api-label">http://127.0.0.1:8000</strong>
+    </div>
+  </aside>
+
+  <main class="main-shell">
+    <section class="topbar">
+      <div>
+        <p class="eyebrow">Founder Consultation Queue</p>
+        <h1>Consultation Admin</h1>
+      </div>
+      <div class="top-actions">
+        <button id="refresh-btn" class="ghost-btn" type="button">Refresh</button>
+        <button id="settings-btn" class="primary-btn" type="button">API Settings</button>
+      </div>
+    </section>
+
+    <section id="settings-panel" class="panel settings-panel hidden">
+      <h2>Connect Admin Page</h2>
+      <p>This admin app connects to the main Kundali backend. Paste an admin Supabase JWT token from the main app login session.</p>
+      <div class="settings-grid">
+        <label>
+          <span>API Base URL</span>
+          <input id="api-base" value="http://127.0.0.1:8000">
+        </label>
+        <label>
+          <span>Admin Bearer Token</span>
+          <textarea id="admin-token" placeholder="Paste Supabase access_token for an admin user"></textarea>
+        </label>
+      </div>
+      <div class="settings-actions">
+        <button id="save-settings" class="primary-btn" type="button">Save Connection</button>
+        <button id="clear-settings" class="ghost-btn" type="button">Clear Token</button>
+      </div>
+      <div class="hint-box">
+        Open the main app, login as admin, then copy `supabase_token` from browser localStorage if needed. This page never stores service-role database keys.
+      </div>
+    </section>
+
+    <section id="dashboard-panel" class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Overview</p>
+          <h2>Platform Metrics</h2>
+        </div>
+      </div>
+      <div id="dashboard-metrics" class="dashboard-grid">
+        <div class="empty">Loading metrics...</div>
+      </div>
+    </section>
+
+    <section id="astrologers-panel" class="panel hidden">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Community</p>
+          <h2>Astrologer Applications</h2>
+        </div>
+        <button id="refresh-astro-btn" class="ghost-btn" type="button">Refresh List</button>
+      </div>
+      <div id="astro-status-line" class="status-line">Ready.</div>
+      <div class="requests-grid" id="astro-requests"></div>
+    </section>
+
+    <section id="community-panel" class="panel hidden">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Community Broadcast</p>
+          <h2>Post to Community Channels</h2>
+        </div>
+      </div>
+      <div class="community-admin-grid">
+        <form id="community-broadcast-form" class="community-broadcast-card">
+          <div class="community-form-row">
+            <label>
+              <span>Channel</span>
+              <select id="community-channel">
+                <option value="announcements">Announcements</option>
+                <option value="general">General</option>
+              </select>
+            </label>
+            <label>
+              <span>Post title</span>
+              <input id="community-title" placeholder="Short announcement headline">
+            </label>
+          </div>
+          <label>
+            <span>Message</span>
+            <textarea id="community-message" placeholder="Write the post body..."></textarea>
+          </label>
+          <div class="community-form-row">
+            <label>
+              <span>Link URL</span>
+              <input id="community-link-url" type="url" placeholder="https://example.com/resource">
+            </label>
+            <label>
+              <span>Link label</span>
+              <input id="community-link-label" placeholder="Read more / Join session / Open resource">
+            </label>
+          </div>
+          <label>
+            <span>Image</span>
+            <input id="community-image" type="file" accept="image/*">
+          </label>
+          <div id="community-image-preview" class="community-image-preview hidden"></div>
+          <div class="settings-actions">
+            <button class="primary-btn" type="submit">Broadcast Post</button>
+            <button id="clear-community-message" class="ghost-btn" type="button">Clear</button>
+          </div>
+          <div id="community-status-line" class="status-line">Ready to broadcast.</div>
+        </form>
+        <div class="community-help-card">
+          <h3>How this works</h3>
+          <p>Announcements go directly to the community <strong>#announcements</strong> channel. General posts go to <strong>#general</strong>.</p>
+          <p>Community users can reply normally, and the same chat actions such as Helpful, Save, Delete, and Thread remain available inside the community app.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="consultations-panel" class="panel hidden">
+      <div class="tabs" id="tabs"></div>
+      <div id="status-line" class="status-line">Ready.</div>
+      <div class="requests-grid" id="requests"></div>
+    </section>
+
+
+
+    <section id="case-detail-panel" class="panel hidden">
+      <div id="case-detail-root" class="case-detail-root">
+        <div class="empty">Select a consultation case to review details.</div>
+      </div>
+    </section>
+
+    <section id="matchmaking-panel" class="panel hidden">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Marriage Match Reports</p>
+          <h2>Matchmaking Admin</h2>
+        </div>
+        <button id="refresh-matches-btn" class="ghost-btn" type="button">Refresh Reports</button>
+      </div>
+      <div id="match-status-line" class="status-line">Ready.</div>
+      <div class="requests-grid" id="match-requests"></div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js?v=23"></script>
+</body>
+</html>
