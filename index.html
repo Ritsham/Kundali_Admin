@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kundali Admin - Consultations</title>
+  <title>Kundali Admin - Telemetry & Cases</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -13,7 +16,7 @@
   <aside class="sidebar">
     <div class="brand">
       <span>Kundali</span>
-      <strong>Admin</strong>
+      <strong>Telemetry</strong>
     </div>
     <nav>
       <button class="nav-item active" data-panel="dashboard">Dashboard</button>
@@ -24,8 +27,12 @@
       <button class="nav-item" data-panel="settings">Connection</button>
     </nav>
     <div class="connection-card">
-      <span>API</span>
+      <div class="connection-status">
+        <span class="status-dot online" id="api-status-dot"></span>
+        <span id="api-status-text">Observatory Link</span>
+      </div>
       <strong id="api-label">http://127.0.0.1:8000</strong>
+      <div class="connection-ping" id="api-ping-indicator">Latency: 0ms</div>
     </div>
   </aside>
 

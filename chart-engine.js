@@ -7,6 +7,7 @@ export class KundaliChart {
       fontFamily: options.fontFamily || '"Roboto", sans-serif',
       lineColor: options.lineColor || '#f9c5af',
       lineWidth: options.lineWidth || 1.5,
+      textColor: options.textColor || '#241f1a',
       ...options
     };
 
@@ -164,7 +165,7 @@ export class KundaliChart {
 
       // ── 1. Rashi number ──────────────────────────────────────────────────────
       this.ctx.font      = `bold ${numSize}px ${this.options.fontFamily}`;
-      this.ctx.fillStyle = '#241f1a';
+      this.ctx.fillStyle = this.options.textColor;
       this.ctx.fillText(signNum, cx, numY);
 
       // ── 2. Planet abbreviations (max 2 per row, individually coloured) ───────

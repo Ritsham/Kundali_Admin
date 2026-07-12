@@ -803,7 +803,7 @@ function renderCaseChartCanvas(caseId, code) {
   const canvas = document.getElementById(`case-chart-${caseId}-${code}`);
   const entry = window.caseChartData?.[caseId]?.find((chartEntry) => chartEntry.code === code);
   if (!canvas || !entry?.chart || canvas.dataset.rendered === "true") return;
-  new KundaliChart(canvas, entry.chart, { responsive: true });
+  new KundaliChart(canvas, entry.chart, { responsive: true, textColor: '#f1f5f9', lineColor: 'rgba(226, 186, 110, 0.35)' });
   canvas.dataset.rendered = "true";
 }
 
@@ -1204,8 +1204,8 @@ function renderMatchmakingCaseDetail(item) {
 
   setTimeout(() => {
     chartPairs.forEach((pair, idx) => {
-      if (pair.boy?.chart) new KundaliChart(document.getElementById(`match-boy-chart-${caseId}-${idx}`), pair.boy.chart, { responsive: true });
-      if (pair.girl?.chart) new KundaliChart(document.getElementById(`match-girl-chart-${caseId}-${idx}`), pair.girl.chart, { responsive: true });
+      if (pair.boy?.chart) new KundaliChart(document.getElementById(`match-boy-chart-${caseId}-${idx}`), pair.boy.chart, { responsive: true, textColor: '#f1f5f9', lineColor: 'rgba(226, 186, 110, 0.35)' });
+      if (pair.girl?.chart) new KundaliChart(document.getElementById(`match-girl-chart-${caseId}-${idx}`), pair.girl.chart, { responsive: true, textColor: '#f1f5f9', lineColor: 'rgba(226, 186, 110, 0.35)' });
     });
     
     const boyDasha = document.getElementById(`match-dasha-boy-${caseId}`);
@@ -1344,11 +1344,11 @@ function renderCaseDetail(item) {
     renderVisibleCaseCharts(caseId);
     const transitCanvas = document.getElementById(`case-transit-chart-${caseId}`);
     if (transitCanvas && model.transitChart) {
-      new KundaliChart(transitCanvas, model.transitChart, { responsive: true });
+      new KundaliChart(transitCanvas, model.transitChart, { responsive: true, textColor: '#f1f5f9', lineColor: 'rgba(226, 186, 110, 0.35)' });
     }
     const kpCanvas = document.getElementById(`case-kp-chart-${caseId}`);
     if (kpCanvas && model.mainChart) {
-      new KundaliChart(kpCanvas, model.mainChart, { responsive: true });
+      new KundaliChart(kpCanvas, model.mainChart, { responsive: true, textColor: '#f1f5f9', lineColor: 'rgba(226, 186, 110, 0.35)' });
     }
     const dashaHost = document.getElementById(`case-dasha-${caseId}`);
     if (dashaHost && model.dashas) {
@@ -1764,8 +1764,8 @@ window.toggleDossier = function(id) {
       container.innerHTML = html;
       
       setTimeout(() => {
-        if (boy && document.getElementById(`canvas-boy-lagna-${id}`)) new KundaliChart(document.getElementById(`canvas-boy-lagna-${id}`), boy);
-        if (girl && document.getElementById(`canvas-girl-lagna-${id}`)) new KundaliChart(document.getElementById(`canvas-girl-lagna-${id}`), girl);
+        if (boy && document.getElementById(`canvas-boy-lagna-${id}`)) new KundaliChart(document.getElementById(`canvas-boy-lagna-${id}`), boy, { textColor: '#f1f5f9', lineColor: 'rgba(226, 186, 110, 0.35)' });
+        if (girl && document.getElementById(`canvas-girl-lagna-${id}`)) new KundaliChart(document.getElementById(`canvas-girl-lagna-${id}`), girl, { textColor: '#f1f5f9', lineColor: 'rgba(226, 186, 110, 0.35)' });
         const boyDashaEl = document.getElementById(`admin-dasha-boy-${id}`);
         const girlDashaEl = document.getElementById(`admin-dasha-girl-${id}`);
         if (boyDashaEl) new DashaWidget(boyDashaEl, boy?.dashas, { personLabel: 'Boy' }).render();
@@ -1799,7 +1799,7 @@ window.toggleDossier = function(id) {
       
       setTimeout(() => {
         if (person && document.getElementById(`canvas-person-lagna-${id}`)) {
-          new KundaliChart(document.getElementById(`canvas-person-lagna-${id}`), person);
+          new KundaliChart(document.getElementById(`canvas-person-lagna-${id}`), person, { textColor: '#f1f5f9', lineColor: 'rgba(226, 186, 110, 0.35)' });
         }
         const personDashaEl = document.getElementById(`admin-dasha-person-${id}`);
         if (personDashaEl) new DashaWidget(personDashaEl, person?.dashas, { personLabel: 'Native' }).render();
@@ -1920,7 +1920,7 @@ window.toggleDossier = function(id) {
     // Render Chart
     const canvas = document.getElementById(`canvas-lagna-${id}`);
     if (canvas && chartData) {
-      new KundaliChart(canvas, chartData, { responsive: true });
+      new KundaliChart(canvas, chartData, { responsive: true, textColor: '#f1f5f9', lineColor: 'rgba(226, 186, 110, 0.35)' });
     }
 
     // Render Dasha
@@ -1936,3 +1936,37 @@ window.toggleDossier = function(id) {
     chartsContainer.innerHTML = `<p>Error rendering dossier: ${escapeHtml(err.message)}</p>`;
   }
 };
+
+async function startHeartbeat() {
+  const statusDot = document.getElementById("api-status-dot");
+  const statusText = document.getElementById("api-status-text");
+  const pingIndicator = document.getElementById("api-ping-indicator");
+  
+  if (!statusDot || !statusText || !pingIndicator) return;
+  
+  const checkHealth = async () => {
+    const startTime = performance.now();
+    try {
+      const res = await adminFetch("/api/config", { method: "GET" });
+      const duration = Math.round(performance.now() - startTime);
+      if (res.ok) {
+        statusDot.className = "status-dot online";
+        statusText.textContent = "Telemetry Active";
+        pingIndicator.textContent = `Latency: ${duration}ms`;
+      } else {
+        statusDot.className = "status-dot warning";
+        statusText.textContent = "API Error";
+        pingIndicator.textContent = `Status: ${res.status}`;
+      }
+    } catch (err) {
+      statusDot.className = "status-dot offline";
+      statusText.textContent = "Telemetry Offline";
+      pingIndicator.textContent = "No Connection";
+    }
+  };
+  
+  checkHealth();
+  setInterval(checkHealth, 15000);
+}
+
+startHeartbeat();
