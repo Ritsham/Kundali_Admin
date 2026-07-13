@@ -4,6 +4,7 @@
   "description": "Standalone admin console for consultation requests.",
   "main": "app.js",
   "scripts": {
+    "dev": "python3 -m http.server 3000",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

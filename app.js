@@ -47,6 +47,23 @@ const dashboardMetricsEl = document.getElementById("dashboard-metrics");
 const astroRequestsEl = document.getElementById("astro-requests");
 const astroStatusLine = document.getElementById("astro-status-line");
 const sidebarToggle = document.getElementById("sidebar-toggle");
+const topbarEyebrow = document.querySelector(".topbar .eyebrow");
+const topbarTitle = document.querySelector(".topbar h1");
+
+const panelTitles = {
+  dashboard: ["Admin Overview", "Dashboard"],
+  consultations: ["Founder Consultation Queue", "Consultations"],
+  matchmaking: ["Marriage Match Reports", "Matchmaking"],
+  astrologers: ["Community", "Astrologers"],
+  community: ["Community Broadcast", "Community"],
+  settings: ["Admin Connection", "Connection"],
+  "case-detail": ["Founder Consultation Queue", "Case Detail"],
+};
+
+function getPanelFromHash() {
+  const panel = window.location.hash.replace(/^#\/?/, "");
+  return panelTitles[panel] ? panel : "dashboard";
+}
 
 function getApiBase() {
   return "http://127.0.0.1:8000";
@@ -85,6 +102,7 @@ function setSidebarCollapsed(collapsed) {
 }
 
 function showPanel(panel) {
+  panel = panelTitles[panel] ? panel : "dashboard";
   document.querySelectorAll(".nav-item").forEach((btn) => btn.classList.toggle("active", btn.dataset.panel === panel));
   settingsPanel.classList.toggle("hidden", panel !== "settings");
   consultationsPanel.classList.toggle("hidden", panel !== "consultations");
@@ -97,6 +115,9 @@ function showPanel(panel) {
   const isCaseDetail = panel === "case-detail";
   document.body.classList.toggle("case-detail-mode", isCaseDetail);
   if (isCaseDetail) setSidebarCollapsed(true);
+  const [eyebrow, title] = panelTitles[panel];
+  if (topbarEyebrow) topbarEyebrow.textContent = eyebrow;
+  if (topbarTitle) topbarTitle.textContent = title;
   
   if (panel === "matchmaking") loadMatchRequests();
   if (panel === "dashboard") loadDashboard();
@@ -106,6 +127,15 @@ function showPanel(panel) {
 }
 
 window.showPanel = showPanel;
+
+function navigatePanel(panel) {
+  panel = panelTitles[panel] ? panel : "dashboard";
+  if (window.location.hash.replace(/^#\/?/, "") === panel) {
+    showPanel(panel);
+    return;
+  }
+  window.location.hash = panel;
+}
 
 function candidateApiBases() {
   const saved = getApiBase();
@@ -292,6 +322,11 @@ async function loadRequests() {
   }
 }
 
+function displayQuestionOnly(question = "") {
+  const text = String(question || "-").trim();
+  const match = text.match(/User question:\s*(.+)$/i);
+  return match ? match[1].trim() : text;
+}
 
 function renderRequests(requests) {
   if (!requests.length) {
@@ -310,11 +345,10 @@ function renderRequests(requests) {
     window.caseItems[caseId] = item;
 
     const submitted = item.created_at ? new Date(item.created_at).toLocaleString() : "-";
-    const preferred = [consultation.preferred_date || item.preferred_date, consultation.preferred_time || item.preferred_time].filter(Boolean).join(" ") || "-";
     const name = user.full_name || item.name || "-";
     const phone = user.mobile_number || item.phone || "";
     const email = user.email || item.email || "";
-    const question = consultation.question || item.question || "-";
+    const question = displayQuestionOnly(consultation.question || item.question || "-");
     const cleanPhone = String(phone).replace(/\D/g, "");
     const whatsappText = encodeURIComponent(`Hello ${name}, your consultation case status is: ${item.case_status || item.status}.\n${item.scheduled_at ? `Scheduled time: ${item.scheduled_at}\n` : ""}${item.meeting_link ? `Meeting link: ${item.meeting_link}\n` : ""}`);
     const whatsappHref = cleanPhone ? `https://wa.me/${cleanPhone}?text=${whatsappText}` : `https://wa.me/?text=${whatsappText}`;
@@ -328,12 +362,14 @@ function renderRequests(requests) {
             <h3>${escapeHtml(name)}</h3>
             <div class="small-muted">Case ${escapeHtml(caseId)} • ${escapeHtml(sourceLabel)} • ${escapeHtml(chartLabel)} • ${escapeHtml(submitted)}</div>
           </div>
-          <span class="status-pill ${escapeHtml(item.case_status || item.status)}">${escapeHtml(item.case_status || item.status)}</span>
+          <div class="card-status-actions">
+            <span class="status-pill ${escapeHtml(item.case_status || item.status)}">${escapeHtml(item.case_status || item.status)}</span>
+            <button class="done card-complete-btn" type="button" onclick="event.stopPropagation(); completeCase('${escapeHtml(caseId)}')">Complete Case</button>
+          </div>
         </div>
 
         <div class="meta case-summary">
           <div><strong>Question:</strong> ${escapeHtml(question)}</div>
-          <div><strong>Preferred:</strong> ${escapeHtml(preferred)}</div>
           <div><strong>Created:</strong> ${escapeHtml(submitted)}</div>
           <div><strong>Contact:</strong> ${escapeHtml(email)} ${phone ? `• ${escapeHtml(phone)}` : ""}</div>
         </div>
@@ -853,6 +889,8 @@ function matchPositionTable(title, rows = []) {
 
 function renderMatchmakingCaseDetail(item) {
   const caseId = item.case_id || item.id;
+  const matchReportId = item.match_report_id || item.astrology_snapshot?.chart?.meta?.match_id || item.astrology_snapshot?.source_result?.match_id;
+  const canCompleteCase = /^(case_|creq_|cons_)/.test(String(caseId || ""));
   const model = getCaseAstroModel(item);
   const report = model.matchReport || {};
   const status = item.case_status || item.status || "pending";
@@ -998,7 +1036,12 @@ function renderMatchmakingCaseDetail(item) {
   caseDetailRoot.innerHTML = `
     <div class="exact-match-result">
       <div class="exact-top-section">
-        <button class="exact-back-btn" type="button" onclick="showPanel('consultations')">← Back</button>
+        <div class="exact-top-actions">
+          <button class="exact-back-btn" type="button" onclick="showPanel('consultations')">← Back</button>
+          ${canCompleteCase
+            ? `<button class="done exact-complete-btn" type="button" onclick="completeCase('${escapeHtml(caseId)}')">Complete Case</button>`
+            : matchReportId ? `<button class="done exact-complete-btn" type="button" onclick="completeMatchReport('${escapeHtml(matchReportId)}')">Complete Case</button>` : ''}
+        </div>
         <div class="exact-header-layout">
           <div class="exact-header-info">
             <div class="exact-label">MATCH RESULT</div>
@@ -1204,8 +1247,8 @@ function renderMatchmakingCaseDetail(item) {
 
   setTimeout(() => {
     chartPairs.forEach((pair, idx) => {
-      if (pair.boy?.chart) new KundaliChart(document.getElementById(`match-boy-chart-${caseId}-${idx}`), pair.boy.chart, { responsive: true, textColor: '#f1f5f9', lineColor: 'rgba(226, 186, 110, 0.35)' });
-      if (pair.girl?.chart) new KundaliChart(document.getElementById(`match-girl-chart-${caseId}-${idx}`), pair.girl.chart, { responsive: true, textColor: '#f1f5f9', lineColor: 'rgba(226, 186, 110, 0.35)' });
+      if (pair.boy?.chart) new KundaliChart(document.getElementById(`match-boy-chart-${caseId}-${idx}`), pair.boy.chart, { responsive: true, textColor: '#201846', lineColor: 'rgba(65, 47, 91, 0.28)' });
+      if (pair.girl?.chart) new KundaliChart(document.getElementById(`match-girl-chart-${caseId}-${idx}`), pair.girl.chart, { responsive: true, textColor: '#201846', lineColor: 'rgba(65, 47, 91, 0.28)' });
     });
     
     const boyDasha = document.getElementById(`match-dasha-boy-${caseId}`);
@@ -1449,7 +1492,10 @@ function renderMatchRequests(requests) {
             <h3>${escapeHtml(item.boy_name)} + ${escapeHtml(item.girl_name)}</h3>
             <div class="small-muted">${escapeHtml(submitted)}</div>
           </div>
-          <span class="status-pill ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>
+          <div class="card-status-actions">
+            <span class="status-pill ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>
+            <button class="done card-complete-btn" type="button" onclick="event.stopPropagation(); completeMatchReport('${escapeHtml(item.id)}')">Complete Case</button>
+          </div>
         </div>
         <div class="score-box">
           <strong>${escapeHtml(item.guna_score)}/${escapeHtml(item.max_score || 36)}</strong>
@@ -1479,6 +1525,7 @@ window.openMatchReportDetail = function openMatchReportDetail(reportId) {
   renderMatchmakingCaseDetail({
     id: item.id,
     case_id: item.id,
+    match_report_id: item.id,
     source_type: "matchmaking",
     chart_type: "matchmaking",
     status: item.status || "calculated",
@@ -1510,10 +1557,14 @@ window.openMatchReportDetail = function openMatchReportDetail(reportId) {
 };
 
 window.updateRequest = async function updateRequest(id, status) {
-  const meeting = document.getElementById(`meeting-${id}`)?.value.trim() || "";
-  const schedule = document.getElementById(`schedule-${id}`)?.value.trim() || "";
-  const notes = document.getElementById(`notes-${id}`)?.value.trim() || "";
-  const payload = { case_status: status, meeting_link: meeting, scheduled_at: schedule, admin_notes: notes };
+  const payload = {};
+  if (status) payload.case_status = status;
+  const meetingEl = document.getElementById(`meeting-${id}`);
+  const scheduleEl = document.getElementById(`schedule-${id}`);
+  const notesEl = document.getElementById(`notes-${id}`);
+  if (meetingEl) payload.meeting_link = meetingEl.value.trim() || null;
+  if (scheduleEl) payload.scheduled_at = scheduleEl.value.trim() || null;
+  if (notesEl) payload.admin_notes = notesEl.value.trim() || null;
   try {
     const res = await adminFetch(`/api/admin/consultation-cases/${encodeURIComponent(id)}`, {
       method: "PATCH",
@@ -1530,51 +1581,196 @@ window.updateRequest = async function updateRequest(id, status) {
   }
 };
 
+window.completeCase = async function completeCase(id) {
+  if (!/^(case_|creq_|cons_)/.test(String(id || ""))) {
+    alert("This is a matchmaking report, not a submitted consultation case. Open the matching case from Consultations to complete it.");
+    return;
+  }
+  if (!confirm("Mark this case completed? This frees one active consultation slot and can promote the oldest waiting case.")) return;
+  await updateRequest(id, "completed");
+};
+
+window.completeMatchReport = async function completeMatchReport(id) {
+  if (!confirm("Mark this matchmaking report completed?")) return;
+  try {
+    const res = await adminFetch(`/api/admin/matchmaking/requests/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "completed" }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to complete matchmaking report.");
+    loadMatchRequests();
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
 async function loadDashboard() {
   dashboardMetricsEl.innerHTML = '<div class="empty">Loading metrics...</div>';
   try {
-    const res = await adminFetch("/api/admin/dashboard/metrics");
+    const res = await adminFetch("/api/admin/metrics");
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      throw new Error("Dashboard API returned HTML. Check that the main app API is running on port 8000.");
+    }
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Failed to load metrics.");
-    
+
     dashboardMetricsEl.innerHTML = `
-      <div class="metric-card">
-        <span class="label">Total Revenue</span>
-        <span class="value">${escapeHtml(data.revenue_generated)}</span>
+      <div class="dashboard-tabs">
+        ${["Growth", "Retention", "Revenue", "Domains", "Matchmaking", "Community", "Product Usage"].map((label, index) => `
+          <button class="dashboard-tab ${index === 0 ? "active" : ""}" type="button" data-dashboard-tab="${escapeHtml(label)}">${escapeHtml(label)}</button>
+        `).join("")}
       </div>
-      <div class="metric-card">
-        <span class="label">Total Signups</span>
-        <span class="value">${escapeHtml(data.total_signups)}</span>
-      </div>
-      <div class="metric-card">
-        <span class="label">Daily Active Users</span>
-        <span class="value">${escapeHtml(data.dau)}</span>
-        <span class="sub-value">Current active: ${escapeHtml(data.active_users)}</span>
-      </div>
-      <div class="metric-card">
-        <span class="label">Total Consultations</span>
-        <span class="value">${escapeHtml(data.consultation_applications)}</span>
-      </div>
-      <div class="metric-card">
-        <span class="label">Matchmaking Requests</span>
-        <span class="value">${escapeHtml(data.matchmaking_applications)}</span>
-      </div>
-      <div class="metric-card" style="grid-column: 1 / -1; max-width: 500px;">
-        <span class="label">Top Domains</span>
-        <div class="domains-list">
-          ${(data.top_domains || []).map(d => `
-            <div class="domain-item">
-              <div>${escapeHtml(d.name)}</div>
-              <div>${escapeHtml(d.percentage)}%</div>
-            </div>
-            <div class="domain-bar-bg"><div class="domain-bar-fill" style="width: ${escapeHtml(d.percentage)}%"></div></div>
-          `).join("")}
+      ${renderDashboardSection("Growth", renderMetricCards([
+        ["Total Visits", data.growth?.total_visits],
+        ["Unique Visitors", data.growth?.unique_visitors],
+        ["Signups Today", data.growth?.signups_today],
+        ["Signups Week", data.growth?.signups_week],
+        ["Signups Month", data.growth?.signups_month],
+        ["Signup Conversion", `${data.growth?.signup_conversion_rate || 0}%`],
+        ["Returning Users", data.growth?.returning_users],
+        ["Daily Active Users", data.growth?.daily_active_users],
+        ["Weekly Active Users", data.growth?.weekly_active_users],
+        ["Monthly Active Users", data.growth?.monthly_active_users],
+      ]), true)}
+      ${renderDashboardSection("Retention", renderMetricCards([
+        ["Came Back After Consultation", data.retention?.came_back_after_consultation],
+        ["1 Day Retention", `${data.retention?.retention_1_day || 0}%`],
+        ["7 Day Retention", `${data.retention?.retention_7_day || 0}%`],
+        ["30 Day Retention", `${data.retention?.retention_30_day || 0}%`],
+        ["Repeat Consultation Requests", data.retention?.repeat_consultation_requests],
+      ]))}
+      ${renderDashboardSection("Revenue", renderMetricCards([
+        ["Total Paid Users", data.revenue?.total_paid_users],
+        ["Total Revenue", formatMoney(data.revenue?.total_revenue)],
+        ["Revenue Today", formatMoney(data.revenue?.revenue_today)],
+        ["Revenue Week", formatMoney(data.revenue?.revenue_week)],
+        ["Revenue Month", formatMoney(data.revenue?.revenue_month)],
+        ["Paid Consultations", data.revenue?.paid_consultations_count],
+        ["Matchmaking Bookings", data.revenue?.matchmaking_consultation_bookings],
+        ["Average Revenue / User", formatMoney(data.revenue?.average_revenue_per_user)],
+        ["Completed Paid Cases", data.revenue?.completed_paid_cases],
+      ]))}
+      ${renderDashboardSection("Domains", `
+        <div class="analytics-grid two">
+          <div class="metric-card wide">
+            <span class="label">Most Asked Domains</span>
+            ${renderBars(data.domains?.most_asked_domains || [])}
+          </div>
+          <div class="metric-card wide">
+            <span class="label">Domain Split By Product</span>
+            ${renderDomainSplit(data.domains?.domain_split || {})}
+          </div>
         </div>
-      </div>
+      `)}
+      ${renderDashboardSection("Matchmaking", renderMetricCards([
+        ["Total Reports Generated", data.matchmaking?.total_reports],
+        ["Consultation Requested", data.matchmaking?.consultation_requested],
+        ["Free Report To Consultation", `${data.matchmaking?.free_report_to_consultation_rate || 0}%`],
+      ]))}
+      ${renderDashboardSection("Community", `
+        ${renderMetricCards([
+          ["Total Astrologers", data.community?.total_astrologers],
+          ["Pending Applications", data.community?.pending_applications],
+          ["Verified Astrologers", data.community?.verified_astrologers],
+          ["Active Community Users", data.community?.active_community_users],
+          ["Messages Today", data.community?.messages_per_day],
+          ["Reported / Deleted Posts", data.community?.reported_deleted_posts],
+        ])}
+        <div class="analytics-grid two">
+          <div class="metric-card wide"><span class="label">Most Active Channels</span>${renderCountList(data.community?.most_active_channels || [])}</div>
+          <div class="metric-card wide"><span class="label">Engagement By User</span>${renderCountList(data.community?.engagement_by_user || [])}</div>
+        </div>
+      `)}
+      ${renderDashboardSection("Product Usage", `
+        ${renderMetricCards([
+          ["Prashna Charts Generated", data.product_usage?.prashna_charts_generated],
+          ["Lagna Charts Generated", data.product_usage?.lagna_charts_generated],
+          ["Matchmaking Reports Generated", data.product_usage?.matchmaking_reports_generated],
+          ["Downloads / Shares", data.product_usage?.chart_downloads_shares],
+          ["Failed Chart Generations", data.product_usage?.failed_chart_generations],
+        ])}
+        <div class="analytics-grid two">
+          <div class="metric-card wide"><span class="label">Most Used Features</span>${renderCountList(data.product_usage?.most_used_features || [])}</div>
+          <div class="metric-card wide"><span class="label">Drop Off / Top Paths</span>${renderPathList(data.product_usage?.drop_off_points || [])}</div>
+        </div>
+      `)}
     `;
+    dashboardMetricsEl.querySelectorAll("[data-dashboard-tab]").forEach((btn) => {
+      btn.addEventListener("click", () => showDashboardTab(btn.dataset.dashboardTab));
+    });
   } catch (err) {
     dashboardMetricsEl.innerHTML = `<div class="empty">Failed to load dashboard: ${escapeHtml(err.message)}</div>`;
   }
+}
+
+function showDashboardTab(label) {
+  dashboardMetricsEl.querySelectorAll("[data-dashboard-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.dashboardTab === label);
+  });
+  dashboardMetricsEl.querySelectorAll("[data-dashboard-section]").forEach((section) => {
+    section.classList.toggle("hidden", section.dataset.dashboardSection !== label);
+  });
+}
+
+function renderDashboardSection(label, content, active = false) {
+  return `<div class="dashboard-section ${active ? "" : "hidden"}" data-dashboard-section="${escapeHtml(label)}">${content}</div>`;
+}
+
+function renderMetricCards(items) {
+  return `<div class="analytics-grid">${items.map(([label, value]) => `
+    <div class="metric-card">
+      <span class="label">${escapeHtml(label)}</span>
+      <span class="value">${escapeHtml(value ?? 0)}</span>
+    </div>
+  `).join("")}</div>`;
+}
+
+function renderBars(items) {
+  if (!items.length) return '<div class="empty small">No domain data yet.</div>';
+  return `<div class="domains-list">${items.map((item) => `
+    <div class="domain-item">
+      <div>${escapeHtml(item.name)}</div>
+      <div>${escapeHtml(item.count || 0)} · ${escapeHtml(item.percentage || 0)}%</div>
+    </div>
+    <div class="domain-bar-bg"><div class="domain-bar-fill" style="width: ${Math.min(Number(item.percentage || 0), 100)}%"></div></div>
+  `).join("")}</div>`;
+}
+
+function renderDomainSplit(split) {
+  const groups = Object.entries(split);
+  if (!groups.length) return '<div class="empty small">No split data yet.</div>';
+  return `<div class="metric-list">${groups.map(([source, values]) => `
+    <div class="metric-list-row">
+      <strong>${escapeHtml(source)}</strong>
+      <span>${Object.entries(values).map(([name, count]) => `${escapeHtml(name)}: ${escapeHtml(count)}`).join(" · ")}</span>
+    </div>
+  `).join("")}</div>`;
+}
+
+function renderCountList(items) {
+  if (!items.length) return '<div class="empty small">No activity yet.</div>';
+  return `<div class="metric-list">${items.map((item) => `
+    <div class="metric-list-row">
+      <strong>${escapeHtml(item.name)}</strong>
+      <span>${escapeHtml(item.count || 0)}</span>
+    </div>
+  `).join("")}</div>`;
+}
+
+function renderPathList(items) {
+  if (!items.length) return '<div class="empty small">No visits tracked yet.</div>';
+  return `<div class="metric-list">${items.map((item) => `
+    <div class="metric-list-row">
+      <strong>${escapeHtml(item.path || item.name || "/")}</strong>
+      <span>${escapeHtml(item.visits || item.count || 0)}</span>
+    </div>
+  `).join("")}</div>`;
+}
+
+function formatMoney(value) {
+  return `₹${Number(value || 0).toLocaleString("en-IN")}`;
 }
 
 async function loadAstrologers() {
@@ -1666,11 +1862,11 @@ window.updateAstrologer = async function updateAstrologer(id, status) {
 };
 
 document.querySelectorAll(".nav-item").forEach((btn) => btn.addEventListener("click", () => {
-  setSidebarCollapsed(false);
-  showPanel(btn.dataset.panel);
+  navigatePanel(btn.dataset.panel);
+  setSidebarCollapsed(window.matchMedia("(max-width: 860px)").matches);
 }));
 sidebarToggle?.addEventListener("click", () => setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed")));
-document.getElementById("settings-btn").addEventListener("click", () => showPanel("settings"));
+document.getElementById("settings-btn").addEventListener("click", () => navigatePanel("settings"));
 document.getElementById("refresh-btn").addEventListener("click", loadRequests);
 document.getElementById("refresh-matches-btn").addEventListener("click", loadMatchRequests);
 document.getElementById("refresh-astro-btn")?.addEventListener("click", loadAstrologers);
@@ -1685,9 +1881,10 @@ document.getElementById("clear-settings").addEventListener("click", () => {
 communityForm?.addEventListener("submit", broadcastCommunityMessage);
 clearCommunityMessageBtn?.addEventListener("click", clearCommunityComposer);
 communityImageInput?.addEventListener("change", (event) => setCommunityImage(event.target.files?.[0] || null));
+window.addEventListener("hashchange", () => showPanel(getPanelFromHash()));
 syncSettingsUI();
 renderTabs();
-loadDashboard(); // Load dashboard on init instead of requests
+showPanel(getPanelFromHash());
 
 window.toggleDossier = function(id) {
   const container = document.getElementById(`dossier-container-${id}`);
